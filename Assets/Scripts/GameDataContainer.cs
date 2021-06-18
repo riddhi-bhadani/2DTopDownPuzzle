@@ -5,5 +5,5 @@ using UnityEngine;
 public  class GameDataContainer 
 {
     public static bool IsLastLevelCleared = false;
-    public static float EnemySpeed = 1;
+    public static float EnemySpeed = 0.5f;
 }

@@ -37,4 +37,23 @@ public class Enemy : MonoBehaviour
             m_Speed = 0;
         }
     }
+
+    private void Update()
+    {
+        
+    }
+
+    private void LazyEnemyMovement()
+    {
+
+    }
+
+    private void ActiveEnemyMovement()
+    {
+    }
+
+    private void PatrollerEnemyMovement()
+    {
+
+    }
 }

@@ -372,7 +372,7 @@ public class GameController : MonoBehaviour
 
     private Cell GetRandomCellForBlocker()
     {
-        // we will not generate cell in Row no- 1 & 6 and Col - 1 & 6
+        // we will not generate the Blocker in cells which have Row no are: 1 & 6 and Column numbers are : 1 & 6
 
         bool isRandomCellPicked = false;
         while (!isRandomCellPicked)
