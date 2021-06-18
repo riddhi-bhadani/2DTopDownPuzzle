@@ -311,7 +311,7 @@ public class GameController : MonoBehaviour
 
         for (int i = 0; i < l_TotalBlockToGenerate; i++)
         {
-           Cell cell = GetRandomCell();
+           Cell cell = GetRandomCellForBlocker();
 
             if (cell != null)
             {
@@ -362,6 +362,26 @@ public class GameController : MonoBehaviour
             if (!m_Cells[l_RandomIndex].IsOccupied)
             {
                 Cell cell = m_Cells[l_RandomIndex];
+                isRandomCellPicked = true;
+                return cell;
+            }
+        }
+
+        return null;
+    }
+
+    private Cell GetRandomCellForBlocker()
+    {
+        // we will not generate cell in Row no- 1 & 6 and Col - 1 & 6
+
+        bool isRandomCellPicked = false;
+        while (!isRandomCellPicked)
+        {
+            int l_RandomIndex = Random.Range(0, m_Cells.Count);
+            Cell cell = m_Cells[l_RandomIndex];
+            if (!cell.IsOccupied && (cell.Row != 1 && cell.Row != m_TotalRows)
+                && (cell.Column != 1 && cell.Column != m_TotalColumns))
+            {
                 isRandomCellPicked = true;
                 return cell;
             }
