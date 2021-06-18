@@ -103,8 +103,8 @@ public class GameController : MonoBehaviour
     private void OnEnable()
     {
         Player.CollideWithBlocked += OnBlockerDetected;
-        Player.CoinCollected += ReachedOnExit;
-        Player.ReachedOnExit += OnCoinCollection;
+        Player.CoinCollected += OnCoinCollection;
+        Player.ReachedOnExit += ReachedOnExit;
         Player.CollideWithEnemy += OnCollideWithEnemy;
     }
 
@@ -536,7 +536,7 @@ public class GameController : MonoBehaviour
 
     private void SetIntersectInColumn()
     {
-        for (float x = m_Left + (m_CellWidth / 2f); x <= m_Right - m_CellWidth; x += m_CellWidth)
+        for (float x = m_Left + (m_CellWidth / 2f); x <= m_Right - m_CellWidth/2; x += m_CellWidth)
         {
             float l_Position = m_Character.transform.position.x;
             if (Mathf.Abs(l_Position - x) <= CHANGE_DIRECTION_OFFSET)
@@ -553,7 +553,7 @@ public class GameController : MonoBehaviour
 
     private void SetIntersectInRow()
     {
-        for (float y = m_Bottom + (m_CellHeight / 2f); y <= m_Top - m_CellHeight; y += m_CellHeight)
+        for (float y = m_Bottom + (m_CellHeight / 2f); y <= m_Top - m_CellHeight/2; y += m_CellHeight)
         {
             float l_Position = m_Character.transform.position.y;
             if (Mathf.Abs(l_Position - y) <= CHANGE_DIRECTION_OFFSET)
@@ -570,7 +570,7 @@ public class GameController : MonoBehaviour
 
     private void SetInRow()
     {
-        for (float x = m_Left + (m_CellWidth / 2f); x <= m_Right - m_CellWidth; x += m_CellWidth)
+        for (float x = m_Left + (m_CellWidth / 2f); x <= m_Right - m_CellWidth/2; x += m_CellWidth)
         {
             float l_Position = m_Character.transform.position.x;
             if (Mathf.Abs(l_Position - x) <= CHANGE_DIRECTION_OFFSET)
@@ -585,7 +585,7 @@ public class GameController : MonoBehaviour
 
     private void SetInColumn()
     {
-        for (float y = m_Bottom + (m_CellHeight / 2f); y <= m_Top - m_CellHeight; y += m_CellHeight)
+        for (float y = m_Bottom + (m_CellHeight / 2f); y <= m_Top - m_CellHeight/2; y += m_CellHeight)
         {
             float l_Position = m_Character.transform.position.y;
             if (Mathf.Abs(l_Position - y) <= CHANGE_DIRECTION_OFFSET)
