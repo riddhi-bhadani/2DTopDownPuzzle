@@ -7,6 +7,8 @@ public class Player : MonoBehaviour
 {
     public static Action CoinCollected;
     public static Action CollideWithEnemy;
+    public static Action ReachedOnExit;
+    public static Action CollideWithBlocked;
 
     public Cell InitialCell = null;
 
@@ -23,10 +25,15 @@ public class Player : MonoBehaviour
         {
             CollideWithEnemy?.Invoke();
         }
-
+       
         if (collision.gameObject.tag == "Block")
         {
-            // stop the player here
+            CollideWithBlocked?.Invoke();
+        }
+
+        if (collision.gameObject.tag == "Exit")
+        {
+            ReachedOnExit?.Invoke();
         }
     }
 }

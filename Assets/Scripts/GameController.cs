@@ -40,6 +40,8 @@ public class GameController : MonoBehaviour
     private static float CAMERA_SIZE = 5f;
     private const int MINIMUM_BLOCK_RANGE = 4;
     private const int MAXIMUM_BLOCK_RANGE = 6;
+    private const float INITIAL_SPEED = 1f;
+    private const float CHANGE_DIRECTION_OFFSET = 0.5f;
 
     private List<Cell> m_Cells = new List<Cell>();
 
@@ -75,16 +77,7 @@ public class GameController : MonoBehaviour
     private Button m_BottomButton;
 
     [SerializeField]
-    private GameObject m_ObjectType1;
-
-    [SerializeField]
-    private GameObject m_ObjectType2;
-
-    [SerializeField]
-    private Text m_Text;
-
-    [SerializeField]
-    private GameObject m_GameOverPopup;
+    private GameObject m_GameOverPopup, m_LoadNewLevelBtn, m_RestartGameBtn;
 
     private float m_Left;
     private float m_Right;
@@ -99,7 +92,6 @@ public class GameController : MonoBehaviour
     private bool m_IsTop = false;
     private bool m_IsBottom = false;
     private int m_CollectedCoins = 0;
-    private float m_CurrentSpeed = 1f;
 
     private bool m_IsIntersectInRow = true;
     private bool m_IsIntersectInColumn = true;
@@ -110,18 +102,24 @@ public class GameController : MonoBehaviour
 
     private void OnEnable()
     {
-        Player.CoinCollected += OnCoinCollection;
+        Player.CollideWithBlocked += OnBlockerDetected;
+        Player.CoinCollected += ReachedOnExit;
+        Player.ReachedOnExit += OnCoinCollection;
         Player.CollideWithEnemy += OnCollideWithEnemy;
     }
 
     private void OnDisable()
     {
+        Player.CollideWithBlocked -= OnBlockerDetected;
+        Player.ReachedOnExit -= ReachedOnExit;
         Player.CoinCollected -= OnCoinCollection;
         Player.CollideWithEnemy -= OnCollideWithEnemy;
     }
 
     private void Start()
     {
+        m_Speed = INITIAL_SPEED;
+
         InitCells();
         SetStartPoint();
         SetExitPoint();
@@ -130,10 +128,7 @@ public class GameController : MonoBehaviour
         GenerateEnemies();
         GenerateCoins();
 
-        //m_GameOverPopup.SetActive(false);
-        //m_RowAndColSelectionPopup.SetActive(true);
-
-        //m_Text.text = "Speed : " + m_CurrentSpeed.ToString() + "X";
+        m_GameOverPopup.SetActive(false);
 
         EventTrigger l_LeftDown = m_LeftButton.gameObject.AddComponent<EventTrigger>();
         var l_LeftPointerDown = new EventTrigger.Entry();
@@ -144,6 +139,8 @@ public class GameController : MonoBehaviour
             {
                 m_CurrentDirection = Direction.Left;
             }
+
+            m_Speed = INITIAL_SPEED;
 
             m_IsLeft = true;
         });
@@ -164,6 +161,7 @@ public class GameController : MonoBehaviour
             {
                 m_CurrentDirection = Direction.Right;
             }
+            m_Speed = INITIAL_SPEED;
 
             m_IsRight = true;
         });
@@ -184,6 +182,7 @@ public class GameController : MonoBehaviour
             {
                 m_CurrentDirection = Direction.Top;
             }
+            m_Speed = INITIAL_SPEED;
 
             m_IsTop = true;
         });
@@ -204,6 +203,7 @@ public class GameController : MonoBehaviour
             {
                 m_CurrentDirection = Direction.Bottom;
             }
+            m_Speed = INITIAL_SPEED;
 
             m_IsBottom = true;
         });
@@ -275,6 +275,12 @@ public class GameController : MonoBehaviour
         startCell.CellType = CellType.Start;
         m_StartPoint.transform.position = startCell.Position;
 
+       SpriteRenderer sprite = m_StartPoint.GetComponentInChildren<SpriteRenderer>();
+       Vector2 size = sprite.sprite.rect.size;
+
+        Vector3 l_Scale = new Vector3((m_CellWidth * 100) / size.x, (m_CellHeight * 100)/ size.y);
+        m_StartPoint.transform.localScale = l_Scale;
+
         m_StartPointCell = startCell;
     }
 
@@ -286,6 +292,9 @@ public class GameController : MonoBehaviour
         exitCell.IsOccupied = true;
         exitCell.CellType = CellType.Exit;
         m_ExitPoint.transform.position = exitCell.Position;
+
+        Exit exit = m_ExitPoint.GetComponent<Exit>();
+        exit.SetScale(m_CellWidth, m_CellHeight);
     }
 
     private void SetCharacterOnStartPoint()
@@ -307,9 +316,11 @@ public class GameController : MonoBehaviour
             if (cell != null)
             {
                 GameObject block = Instantiate(m_BlockPrefab, m_Parent);
+                Blocker blocker = block.GetComponent<Blocker>();
                 block.transform.position = cell.Position;
                 cell.IsOccupied = true;
                 cell.CellType = CellType.Blocked;
+                blocker.SetScale(m_CellWidth, m_CellHeight);
             }
         }
     }
@@ -528,7 +539,7 @@ public class GameController : MonoBehaviour
         for (float x = m_Left + (m_CellWidth / 2f); x <= m_Right - m_CellWidth; x += m_CellWidth)
         {
             float l_Position = m_Character.transform.position.x;
-            if (Mathf.Abs(l_Position - x) <= 0.1f)
+            if (Mathf.Abs(l_Position - x) <= CHANGE_DIRECTION_OFFSET)
             {
                 m_IsIntersectInColumn = true;
                 break;
@@ -545,7 +556,7 @@ public class GameController : MonoBehaviour
         for (float y = m_Bottom + (m_CellHeight / 2f); y <= m_Top - m_CellHeight; y += m_CellHeight)
         {
             float l_Position = m_Character.transform.position.y;
-            if (Mathf.Abs(l_Position - y) <= 0.1f)
+            if (Mathf.Abs(l_Position - y) <= CHANGE_DIRECTION_OFFSET)
             {
                 m_IsIntersectInRow = true;
                 break;
@@ -562,7 +573,7 @@ public class GameController : MonoBehaviour
         for (float x = m_Left + (m_CellWidth / 2f); x <= m_Right - m_CellWidth; x += m_CellWidth)
         {
             float l_Position = m_Character.transform.position.x;
-            if (Mathf.Abs(l_Position - x) <= 0.1f)
+            if (Mathf.Abs(l_Position - x) <= CHANGE_DIRECTION_OFFSET)
             {
                 Vector3 l_CharacterPosition = m_Character.transform.position;
                 l_CharacterPosition.x = x;
@@ -577,7 +588,7 @@ public class GameController : MonoBehaviour
         for (float y = m_Bottom + (m_CellHeight / 2f); y <= m_Top - m_CellHeight; y += m_CellHeight)
         {
             float l_Position = m_Character.transform.position.y;
-            if (Mathf.Abs(l_Position - y) <= 0.1f)
+            if (Mathf.Abs(l_Position - y) <= CHANGE_DIRECTION_OFFSET)
             {
                 Vector3 l_CharacterPosition = m_Character.transform.position;
                 l_CharacterPosition.y = y;
@@ -590,21 +601,33 @@ public class GameController : MonoBehaviour
     private void OnCoinCollection()
     {
         m_CollectedCoins++;
+    }
+
+    private void ReachedOnExit()
+    {
         if (m_CollectedCoins == m_TotalCoins)
         {
+            m_Speed = 0;
             m_Parent.gameObject.SetActive(false);
-          //  m_GameOverPopup.SetActive(true);
+            m_GameOverPopup.SetActive(true);
+            m_LoadNewLevelBtn.SetActive(true);
 
-            m_IsLeft = false;
-            m_IsRight = false;
-            m_IsTop = false;
-            m_IsBottom = false;
+            GameDataContainer.IsLastLevelCleared = true;
         }
     }
 
     private void OnCollideWithEnemy()
     {
-      // Game Over stuff will be here
+        // Game Over stuff will be here
+        m_Speed = 0;
+        m_GameOverPopup.SetActive(true);
+        m_RestartGameBtn.SetActive(true);
+    }
+
+
+    private void OnBlockerDetected()
+    {
+        m_Speed = 0;
     }
 
     public void OnRestartButtonClick()
