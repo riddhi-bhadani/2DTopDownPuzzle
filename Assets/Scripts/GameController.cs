@@ -38,6 +38,8 @@ public class GameController : MonoBehaviour
     private static float TOP_HEIGHT = 0;
     private static float BOTTOM_HEIGHT = 0;
     private static float CAMERA_SIZE = 5f;
+    private const int MINIMUM_BLOCK_RANGE = 4;
+    private const int MAXIMUM_BLOCK_RANGE = 6;
 
     private List<Cell> m_Cells = new List<Cell>();
 
@@ -53,6 +55,12 @@ public class GameController : MonoBehaviour
 
     [SerializeField]
     private GameObject m_Character, m_StartPoint, m_ExitPoint;
+
+    [SerializeField]
+    private GameObject m_BlockPrefab, m_CoinPrefab;
+
+    [SerializeField]
+    private GameObject[] m_Enemies;
 
     [SerializeField]
     private Button m_LeftButton;
@@ -116,6 +124,7 @@ public class GameController : MonoBehaviour
     private Direction m_CurrentDirection = Direction.Default;
 
     private Cell m_StartPointCell;
+    private int m_TotalCoins = 0;
 
     private void OnEnable()
     {
@@ -135,7 +144,9 @@ public class GameController : MonoBehaviour
         SetStartPoint();
         SetExitPoint();
         SetCharacterOnStartPoint();
-        //SetRandomObjects();
+        GenerateBlock();
+        GenerateEnemies();
+        GenerateCoins();
 
         //m_GameOverPopup.SetActive(false);
         //m_RowAndColSelectionPopup.SetActive(true);
@@ -289,10 +300,83 @@ public class GameController : MonoBehaviour
     {
         // Here, We set Exit point randomly only on Last Column
         int l_RandomRow = Random.Range(1, m_TotalRows + 1);
-        Cell exitCell = m_Cells.Single(cell => cell.Row == l_RandomRow && cell.Column == 6);
+        Cell exitCell = m_Cells.Single(cell => cell.Row == l_RandomRow && cell.Column == m_TotalColumns);
         exitCell.IsOccupied = true;
         exitCell.CellType = CellType.Exit;
         m_ExitPoint.transform.position = exitCell.Position;
+    }
+
+    private void SetCharacterOnStartPoint()
+    {
+        //Set Player on Start Cell
+        m_Character.transform.position = m_StartPointCell.Position; ;
+        Player player = m_Character.GetComponent<Player>();
+        player.InitialCell = m_StartPointCell;
+    }
+
+    private void GenerateBlock()
+    {
+        int l_TotalBlockToGenerate = Random.Range(MINIMUM_BLOCK_RANGE, MAXIMUM_BLOCK_RANGE + 1);
+
+        for (int i = 0; i < l_TotalBlockToGenerate; i++)
+        {
+           Cell cell = GetRandomCell();
+
+            if (cell != null)
+            {
+                GameObject block = Instantiate(m_BlockPrefab, m_Parent);
+                block.transform.position = cell.Position;
+                cell.IsOccupied = true;
+                cell.CellType = CellType.Blocked;
+            }
+        }
+    }
+
+    private void GenerateEnemies()
+    {
+        for (int i = 0; i < m_Enemies.Length; i++)
+        {
+            Cell cell = GetRandomCell();
+
+            if (cell != null)
+            {
+                m_Enemies[i].transform.position = cell.Position;
+                cell.IsOccupied = true;
+                cell.CellType = CellType.Blocked;
+            }
+        }
+    }
+
+    private void GenerateCoins()
+    {
+        foreach (var cell in m_Cells)
+        {
+            if (!cell.IsOccupied)
+            {
+               GameObject coin =  Instantiate(m_CoinPrefab, m_Parent);
+               coin.transform.position = cell.Position;
+               cell.IsOccupied = true;
+               cell.CellType = CellType.Coin;
+               m_TotalCoins++;
+            }
+        }
+    }
+
+    private Cell GetRandomCell()
+    {
+        bool isRandomCellPicked = false;
+        while (!isRandomCellPicked)
+        {
+            int l_RandomIndex = Random.Range(0, m_Cells.Count);
+            if (!m_Cells[l_RandomIndex].IsOccupied)
+            {
+                Cell cell = m_Cells[l_RandomIndex];
+                isRandomCellPicked = true;
+                return cell;
+            }
+        }
+
+        return null;
     }
 
     private void DrawLine(Vector3 startPosition, Vector3 endPosition)
@@ -307,13 +391,6 @@ public class GameController : MonoBehaviour
         lineRenderer.endWidth = 0.08f;
         lineRenderer.sortingOrder = -20;
         l_Line.transform.SetParent(m_Parent);
-    }
-
-    private void SetCharacterOnStartPoint()
-    {
-        m_Character.transform.position = m_StartPointCell.Position; ;
-        Player player = m_Character.GetComponent<Player>();
-        player.InitialCell = m_StartPointCell;
     }
 
     private Vector3 FindPositionBaseOnRowAndColumn(int row, int column)
