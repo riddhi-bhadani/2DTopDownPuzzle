@@ -9,8 +9,7 @@ public class Player : MonoBehaviour
     public static Action Type2ObjectCollected;
 
     private BoxCollider2D m_BoxCollider2D;
-    public int m_InitalRow = 0;
-    public int m_InitalColumn = 0;
+    public Cell InitialCell = null;
 
     private void Start()
     {

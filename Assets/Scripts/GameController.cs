@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -14,11 +15,31 @@ public enum Direction
     Bottom = 4
 }
 
+public enum CellType
+{
+    None = -1,
+    Start,
+    Exit,
+    Blocked,
+    Coin
+}
+
+public class Cell
+{
+    public int Row;
+    public int Column;
+    public bool IsOccupied;
+    public CellType CellType = CellType.None;
+    public Vector3 Position = Vector3.zero;
+}
+
 public class GameController : MonoBehaviour
 {
     private static float TOP_HEIGHT = 0;
     private static float BOTTOM_HEIGHT = 0;
     private static float CAMERA_SIZE = 5f;
+
+    private List<Cell> m_Cells = new List<Cell>();
 
     [SerializeField]
     private Canvas m_Canvas;
@@ -94,6 +115,8 @@ public class GameController : MonoBehaviour
     private bool m_IsIntersectInColumn = true;
     private Direction m_CurrentDirection = Direction.Default;
 
+    private Cell m_StartPointCell;
+
     private void OnEnable()
     {
         Player.Type1ObjectCollected += Type1ObjectCollect;
@@ -109,6 +132,10 @@ public class GameController : MonoBehaviour
     private void Start()
     {
         InitCells();
+        SetStartPoint();
+        SetExitPoint();
+        SetCharacterOnStartPoint();
+        //SetRandomObjects();
 
         //m_GameOverPopup.SetActive(false);
         //m_RowAndColSelectionPopup.SetActive(true);
@@ -219,6 +246,7 @@ public class GameController : MonoBehaviour
             m_Bottom = -m_Top;
         }
 
+        //draw Grid 6x6
         for (float x = m_Left; x <= m_Right; x += m_CellWidth)
         {
             DrawLine(new Vector3(x, m_Top, 0), new Vector3(x, m_Bottom, 0));
@@ -229,8 +257,42 @@ public class GameController : MonoBehaviour
             DrawLine(new Vector3(m_Left, y, 0), new Vector3(m_Right, y, 0));
         }
 
-        SetCharacterOnRandomPlace();
-        //SetRandomObjects();
+        //define Cells
+        for (int row = 0; row < m_TotalRows; row++)
+        {
+            for (int col = 0; col < m_TotalColumns; col++)
+            {
+                Cell cell = new Cell();
+                cell.Row = row + 1;
+                cell.Column = col + 1;
+                cell.IsOccupied = false;
+                cell.Position = FindPositionBaseOnRowAndColumn(cell.Row, cell.Column);
+                cell.CellType = CellType.None;
+                m_Cells.Add(cell);
+            }
+        }
+    }
+
+    private void SetStartPoint()
+    {
+        // Here, We set Start point randomly only on First Column
+        int l_RandomRow = Random.Range(1, m_TotalRows + 1);
+        Cell startCell = m_Cells.Single(cell => cell.Row == l_RandomRow && cell.Column == 1);
+        startCell.IsOccupied = true;
+        startCell.CellType = CellType.Start;
+        m_StartPoint.transform.position = startCell.Position;
+
+        m_StartPointCell = startCell;
+    }
+
+    private void SetExitPoint()
+    {
+        // Here, We set Exit point randomly only on Last Column
+        int l_RandomRow = Random.Range(1, m_TotalRows + 1);
+        Cell exitCell = m_Cells.Single(cell => cell.Row == l_RandomRow && cell.Column == 6);
+        exitCell.IsOccupied = true;
+        exitCell.CellType = CellType.Exit;
+        m_ExitPoint.transform.position = exitCell.Position;
     }
 
     private void DrawLine(Vector3 startPosition, Vector3 endPosition)
@@ -247,23 +309,11 @@ public class GameController : MonoBehaviour
         l_Line.transform.SetParent(m_Parent);
     }
 
-    private void SetStartPointRandomOnFirstColumn()
+    private void SetCharacterOnStartPoint()
     {
-        int l_RandomRow = Random.Range(1, m_TotalRows);
-        Vector3 l_Position = FindPositionBaseOnRowAndColumn(l_RandomRow, 1);
-        m_Character.transform.position = l_Position;
-        //m_Character.GetComponent<Player>().m_InitalRow = l_RandomRow;
-        //m_Character.GetComponent<Player>().m_InitalColumn = l_RandomCol;
-    }
-
-    private void SetCharacterOnRandomPlace()
-    {
-        int l_RandomRow = Random.Range(1, m_TotalRows);
-        int l_RandomCol = Random.Range(1, m_TotalColumns);
-        Vector3 l_Position = FindPositionBaseOnRowAndColumn(l_RandomRow, l_RandomCol);
-        m_Character.transform.position = l_Position;
-        m_Character.GetComponent<Player>().m_InitalRow = l_RandomRow;
-        m_Character.GetComponent<Player>().m_InitalColumn = l_RandomCol;
+        m_Character.transform.position = m_StartPointCell.Position; ;
+        Player player = m_Character.GetComponent<Player>();
+        player.InitialCell = m_StartPointCell;
     }
 
     private Vector3 FindPositionBaseOnRowAndColumn(int row, int column)
@@ -271,7 +321,7 @@ public class GameController : MonoBehaviour
         Vector3 l_Position = Vector3.zero;
 
         int l_Column = 1;
-        for (float x = m_Left + m_CellWidth / 2f; x <= m_Right - m_CellWidth; x += m_CellWidth)
+        for (float x = m_Left + m_CellWidth / 2f; x <= m_Right + m_CellWidth; x += m_CellWidth)
         {
             if (l_Column == column)
             {
@@ -282,7 +332,7 @@ public class GameController : MonoBehaviour
         }
 
         int l_Row = 1;
-        for (float y = m_Bottom + m_CellHeight / 2f; y <= m_Top - m_CellHeight; y += m_CellHeight)
+        for (float y = m_Bottom + m_CellHeight / 2f; y <= m_Top + m_CellHeight; y += m_CellHeight)
         {
             if (l_Row == row)
             {
@@ -308,7 +358,7 @@ public class GameController : MonoBehaviour
         int l_RandomCol = Random.Range(1, m_TotalColumns);
         for (int i = 1; i <= m_Type1Count; i++)
         {
-            while ((l_Rows.Contains(l_RandomRow) && l_Cols.Contains(l_RandomCol)) || (l_Player.m_InitalRow == l_RandomRow && l_Player.m_InitalColumn == l_RandomCol))
+            while ((l_Rows.Contains(l_RandomRow) && l_Cols.Contains(l_RandomCol)) || (l_Player.InitialCell.Row == l_RandomRow && l_Player.InitialCell.Column == l_RandomCol))
             {
                 l_RandomRow = Random.Range(1, m_TotalRows);
                 l_RandomCol = Random.Range(1, m_TotalColumns);
@@ -326,7 +376,7 @@ public class GameController : MonoBehaviour
         l_RandomCol = Random.Range(1, m_TotalColumns);
         for (int i = 1; i <= m_Type2Count; i++)
         {
-            while ((l_Rows.Contains(l_RandomRow) && l_Cols.Contains(l_RandomCol)) || (l_Player.m_InitalRow == l_RandomRow && l_Player.m_InitalColumn == l_RandomCol))
+            while ((l_Rows.Contains(l_RandomRow) && l_Cols.Contains(l_RandomCol)) || (l_Player.InitialCell.Row == l_RandomRow && l_Player.InitialCell.Column == l_RandomCol))
             {
                 l_RandomRow = Random.Range(1, m_TotalRows);
                 l_RandomCol = Random.Range(1, m_TotalColumns);
