@@ -5,40 +5,28 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-    public static Action Type1ObjectCollected;
-    public static Action Type2ObjectCollected;
+    public static Action CoinCollected;
+    public static Action CollideWithEnemy;
 
-    private BoxCollider2D m_BoxCollider2D;
     public Cell InitialCell = null;
 
-    private void Start()
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        m_BoxCollider2D = GetComponent<BoxCollider2D>();
-    }
-
-    void Update()
-    {
-        Vector2 l_Origin = m_BoxCollider2D.bounds.center;
-        Vector2 l_Size = m_BoxCollider2D.bounds.size;
-
-        Collider2D l_Type1Collider = Physics2D.OverlapBox(l_Origin, l_Size, 0, LayerMask.GetMask("Object"));
-        if (l_Type1Collider != null && l_Type1Collider.gameObject.activeSelf)
+        Debug.Log("on enter");
+        if (collision.gameObject.CompareTag("Coin"))
         {
-            Object l_Object = l_Type1Collider.GetComponent<Object>();
-            if (l_Object != null)
-            {
-                if (l_Object.GetObjectType() == ObjectType.Type1)
-                {
-                    Type1ObjectCollected?.Invoke();
-                    l_Object.SetAsCollect();
-                }
-                else if (l_Object.GetObjectType() == ObjectType.Type2)
-                {
-                    Type2ObjectCollected?.Invoke();
-                    l_Object.SetAsCollect();
-                }
-            }
+            Destroy(collision.gameObject);
+            CoinCollected?.Invoke();
+        }
 
+        if (collision.gameObject.tag == "Enemy")
+        {
+            CollideWithEnemy?.Invoke();
+        }
+
+        if (collision.gameObject.tag == "Block")
+        {
+            // stop the player here
         }
     }
 }

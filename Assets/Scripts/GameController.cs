@@ -86,21 +86,6 @@ public class GameController : MonoBehaviour
     [SerializeField]
     private GameObject m_GameOverPopup;
 
-    [SerializeField]
-    private GameObject m_RowAndColSelectionPopup;
-
-    [SerializeField]
-    private Slider m_RowSlider;
-
-    [SerializeField]
-    private Text m_RowText;
-
-    [SerializeField]
-    private Slider m_ColumnsSlider;
-
-    [SerializeField]
-    private Text m_ColumnsText;
-
     private float m_Left;
     private float m_Right;
     private float m_Top;
@@ -113,10 +98,7 @@ public class GameController : MonoBehaviour
     private bool m_IsRight = false;
     private bool m_IsTop = false;
     private bool m_IsBottom = false;
-    private int m_Type1Count = 0;
-    private int m_Type2Count = 0;
-    private int m_Type1Collect = 0;
-    private int m_Type2Collect = 0;
+    private int m_CollectedCoins = 0;
     private float m_CurrentSpeed = 1f;
 
     private bool m_IsIntersectInRow = true;
@@ -128,14 +110,14 @@ public class GameController : MonoBehaviour
 
     private void OnEnable()
     {
-        Player.Type1ObjectCollected += Type1ObjectCollect;
-        Player.Type2ObjectCollected += Type2ObjectCollect;
+        Player.CoinCollected += OnCoinCollection;
+        Player.CollideWithEnemy += OnCollideWithEnemy;
     }
 
     private void OnDisable()
     {
-        Player.Type1ObjectCollected -= Type1ObjectCollect;
-        Player.Type2ObjectCollected -= Type2ObjectCollect;
+        Player.CoinCollected -= OnCoinCollection;
+        Player.CollideWithEnemy -= OnCollideWithEnemy;
     }
 
     private void Start()
@@ -341,8 +323,6 @@ public class GameController : MonoBehaviour
             if (cell != null)
             {
                 m_Enemies[i].transform.position = cell.Position;
-                cell.IsOccupied = true;
-                cell.CellType = CellType.Blocked;
             }
         }
     }
@@ -421,53 +401,7 @@ public class GameController : MonoBehaviour
 
         return l_Position;
     }
-
-    private void SetRandomObjects()
-    {
-        Player l_Player = m_Character.GetComponent<Player>();
-        m_Type1Count = Random.Range(3, 6);
-        m_Type2Count = Random.Range(4, 7);
-
-        List<int> l_Rows = new List<int>();
-        List<int> l_Cols = new List<int>();
-
-        int l_RandomRow = Random.Range(1, m_TotalRows);
-        int l_RandomCol = Random.Range(1, m_TotalColumns);
-        for (int i = 1; i <= m_Type1Count; i++)
-        {
-            while ((l_Rows.Contains(l_RandomRow) && l_Cols.Contains(l_RandomCol)) || (l_Player.InitialCell.Row == l_RandomRow && l_Player.InitialCell.Column == l_RandomCol))
-            {
-                l_RandomRow = Random.Range(1, m_TotalRows);
-                l_RandomCol = Random.Range(1, m_TotalColumns);
-            }
-            l_Rows.Add(l_RandomRow);
-            l_Cols.Add(l_RandomCol);
-
-            Vector3 l_Position = FindPositionBaseOnRowAndColumn(l_RandomRow, l_RandomCol);
-            GameObject l_Type = Instantiate(m_ObjectType1);
-            l_Type.transform.position = l_Position;
-            l_Type.transform.SetParent(m_Parent);
-        }
-
-        l_RandomRow = Random.Range(1, m_TotalRows);
-        l_RandomCol = Random.Range(1, m_TotalColumns);
-        for (int i = 1; i <= m_Type2Count; i++)
-        {
-            while ((l_Rows.Contains(l_RandomRow) && l_Cols.Contains(l_RandomCol)) || (l_Player.InitialCell.Row == l_RandomRow && l_Player.InitialCell.Column == l_RandomCol))
-            {
-                l_RandomRow = Random.Range(1, m_TotalRows);
-                l_RandomCol = Random.Range(1, m_TotalColumns);
-            }
-            l_Rows.Add(l_RandomRow);
-            l_Cols.Add(l_RandomCol);
-
-            Vector3 l_Position = FindPositionBaseOnRowAndColumn(l_RandomRow, l_RandomCol);
-            GameObject l_Type = Instantiate(m_ObjectType2);
-            l_Type.transform.position = l_Position;
-            l_Type.transform.SetParent(m_Parent);
-        }
-    }
-
+    
     private void Update()
     {
         if (m_CurrentDirection == Direction.Default)
@@ -653,37 +587,13 @@ public class GameController : MonoBehaviour
         }
     }
 
-    private void Type1ObjectCollect()
+    private void OnCoinCollection()
     {
-        m_Type1Collect++;
-        if (m_Type1Collect == (m_Type1Count / 2))
-        {
-            m_CurrentSpeed++;
-            m_Text.text = "Speed : " + m_CurrentSpeed.ToString() + "X";
-            m_Speed += 5;
-        }
-        AllObjectCollected();
-    }
-
-    private void Type2ObjectCollect()
-    {
-        m_Type2Collect++;
-
-        if (m_Type2Collect == (m_Type2Count / 2))
-        {
-            m_CurrentSpeed++;
-            m_Text.text = "Speed : " + m_CurrentSpeed.ToString() + "X";
-            m_Speed += 5;
-        }
-        AllObjectCollected();
-    }
-
-    private void AllObjectCollected()
-    {
-        if (m_Type1Collect == m_Type1Count && m_Type2Collect == m_Type2Count)
+        m_CollectedCoins++;
+        if (m_CollectedCoins == m_TotalCoins)
         {
             m_Parent.gameObject.SetActive(false);
-            m_GameOverPopup.SetActive(true);
+          //  m_GameOverPopup.SetActive(true);
 
             m_IsLeft = false;
             m_IsRight = false;
@@ -692,26 +602,13 @@ public class GameController : MonoBehaviour
         }
     }
 
+    private void OnCollideWithEnemy()
+    {
+      // Game Over stuff will be here
+    }
+
     public void OnRestartButtonClick()
     {
         SceneManager.LoadScene(0);
-    }
-
-    public void SelectColumns()
-    {
-        m_TotalColumns = (int)m_ColumnsSlider.value;
-        m_ColumnsText.text = m_ColumnsSlider.value.ToString();
-    }
-
-    public void SelectRows()
-    {
-        m_TotalRows = (int)m_RowSlider.value;
-        m_RowText.text = m_RowSlider.value.ToString();
-    }
-
-    public void GameStart()
-    {
-        m_RowAndColSelectionPopup.SetActive(false);
-        InitCells();
     }
 }
