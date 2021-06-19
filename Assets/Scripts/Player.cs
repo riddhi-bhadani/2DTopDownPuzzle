@@ -29,7 +29,10 @@ public class Player : MonoBehaviour
         {
             CollideWithBlocked?.Invoke();
         }
+    }
 
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
         if (collision.gameObject.tag == "Exit")
         {
             ReachedOnExit?.Invoke();

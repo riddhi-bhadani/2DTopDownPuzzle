@@ -28,6 +28,8 @@ public class Cell
 {
     public int Row;
     public int Column;
+    public float CellWidth;
+    public float CellHeight;
     public bool IsOccupied;
     public CellType CellType = CellType.None;
     public Vector3 Position = Vector3.zero;
@@ -256,6 +258,8 @@ public class GameController : MonoBehaviour
             for (int col = 0; col < m_TotalColumns; col++)
             {
                 Cell cell = new Cell();
+                cell.CellHeight = m_CellHeight;
+                cell.CellWidth = m_CellWidth;
                 cell.Row = row + 1;
                 cell.Column = col + 1;
                 cell.IsOccupied = false;
@@ -330,10 +334,11 @@ public class GameController : MonoBehaviour
         for (int i = 0; i < m_Enemies.Length; i++)
         {
             Cell cell = GetRandomCell();
-
+            Enemy enemy = m_Enemies[i].GetComponentInChildren<Enemy>();
             if (cell != null)
             {
                 m_Enemies[i].transform.position = cell.Position;
+                enemy.SetInitialCell(cell, m_Cells);
             }
         }
     }
@@ -631,6 +636,7 @@ public class GameController : MonoBehaviour
             m_Parent.gameObject.SetActive(false);
             m_GameOverPopup.SetActive(true);
             m_LoadNewLevelBtn.SetActive(true);
+            m_RestartGameBtn.SetActive(false);
 
             GameDataContainer.IsLastLevelCleared = true;
         }
@@ -642,6 +648,7 @@ public class GameController : MonoBehaviour
         m_Speed = 0;
         m_GameOverPopup.SetActive(true);
         m_RestartGameBtn.SetActive(true);
+        m_LoadNewLevelBtn.SetActive(false);
     }
 
 
