@@ -19,11 +19,6 @@ public class Player : MonoBehaviour
             Destroy(collision.gameObject);
             CoinCollected?.Invoke();
         }
-
-        if (collision.gameObject.tag == "Enemy")
-        {
-            CollideWithEnemy?.Invoke();
-        }
        
         if (collision.gameObject.tag == "Block")
         {
@@ -36,6 +31,11 @@ public class Player : MonoBehaviour
         if (collision.gameObject.tag == "Exit")
         {
             ReachedOnExit?.Invoke();
+        }
+
+        if (collision.gameObject.tag == "Enemy")
+        {
+            CollideWithEnemy?.Invoke();
         }
     }
 }

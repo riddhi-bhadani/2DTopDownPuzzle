@@ -31,6 +31,7 @@ public class Cell
     public float CellWidth;
     public float CellHeight;
     public bool IsOccupied;
+    public Cell TopCell, BottomCell, LeftCell, RightCell;
     public CellType CellType = CellType.None;
     public Vector3 Position = Vector3.zero;
 }
