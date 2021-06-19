@@ -37,13 +37,17 @@ public class Enemy : MonoBehaviour
     private Cell m_Cell = null;
     private List<Cell> m_Cells = new List<Cell>();
 
+    private Coroutine m_ActiveEnemyCoroutine, m_ActiveMovementCoroutine, m_PatrollerMovementXCoroutine, m_PatrollerMovementYCoroutine;
+
     [SerializeField]
     private EnemyType Type = EnemyType.None;
 
     [SerializeField]
     private Player m_Player = default;
 
-    private Cell m_TargetCell = null;
+    private Cell m_TargetCell = new Cell();
+    int m_randomDirection = -1;
+    int m_horizontalDirection = 0, m_verticalDirection = 0;
 
     private void OnEnable()
     {
@@ -74,7 +78,6 @@ public class Enemy : MonoBehaviour
             GameDataContainer.EnemySpeed += 2;
             m_ActiveEnemySpeed = GameDataContainer.EnemySpeed;
         }
-
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -95,18 +98,18 @@ public class Enemy : MonoBehaviour
         {
             PatrollerEnemyMovement();
         }
+
+        if (Type == EnemyType.Active)
+        {
+            ActiveEnemyMovement();
+        }
     }
 
     private void Update()
     {
-        switch (Type)
+        if (Type == EnemyType.Lazy)
         {
-            case EnemyType.Lazy:
-                LazyEnemyMovement();
-                break;
-            case EnemyType.Active:
-                ActiveEnemyMovement();
-                break;
+            LazyEnemyMovement();
         }
     }
 
@@ -242,62 +245,103 @@ public class Enemy : MonoBehaviour
 
     private void ActiveEnemyMovement()
     {
-        transform.position += (m_Player.transform.position - transform.position).normalized * Time.deltaTime * m_ActiveEnemySpeed;
+        m_ActiveEnemyCoroutine = StartCoroutine(StartActiveEnemyMovement());
+    }
+
+    private IEnumerator StartActiveEnemyMovement()
+    {
+        if (IsBlockedCellByNear(-1) && IsBlockedCellByNear(1)
+           && IsBlockedCellByNear(0, -1) && IsBlockedCellByNear(0, 1))
+        {
+            yield return new WaitForEndOfFrame();
+            StopCoroutine(m_ActiveEnemyCoroutine);
+        }
+
+        m_ActiveMovementCoroutine = StartCoroutine(ActiveEnemyMovementoroutine());
+        yield return new WaitForSeconds(UnityEngine.Random.Range(10, 15));
+        m_ActiveEnemySpeed = 0;
+
+        if (m_PatrollerMovementXCoroutine != null)
+        {
+            StopCoroutine(m_PatrollerMovementXCoroutine);
+        }
+        if (m_PatrollerMovementYCoroutine != null)
+        {
+            StopCoroutine(m_PatrollerMovementYCoroutine);
+        }
+        if (m_ActiveMovementCoroutine != null)
+        {
+            StopCoroutine(m_ActiveMovementCoroutine);
+        }
+
+        yield return new WaitForSeconds(UnityEngine.Random.Range(2, 5));
+        m_ActiveEnemySpeed = ACTIVE_ENEMY_SPEED;
+        m_ActiveEnemyCoroutine = StartCoroutine(StartActiveEnemyMovement());
     }
 
     private void PatrollerEnemyMovement()
     {
-        bool isTargetDirectionSelected = false;
-        int randomDirection = -1;
+        SetTargetForMovement();
 
-        // check blocker are around the all four direction or not
-        if (IsBlockedCellByNear(-1) && IsBlockedCellByNear(1)
-           && IsBlockedCellByNear(0, -1) && IsBlockedCellByNear(0, 1))
+        if (m_randomDirection == (int)Direction.Bottom || m_randomDirection == (int)Direction.Top)
         {
-            return;
+           m_PatrollerMovementXCoroutine = StartCoroutine(StartMovementY(m_verticalDirection, m_TargetCell.Position));
         }
 
-        int horizontalDirection = 0, verticalDirection = 0;
+        if (m_randomDirection == (int)Direction.Left || m_randomDirection == (int)Direction.Right)
+        {
+            m_PatrollerMovementYCoroutine = StartCoroutine(StartMovementX(m_horizontalDirection, m_TargetCell.Position));
+        }
+    }
+
+    private IEnumerator FindCell()
+    {
+        bool isTargetDirectionSelected = false;
+        m_randomDirection = -1;
+
+        // check blocker are around the all four direction or not
+        m_horizontalDirection = 0; m_verticalDirection = 0;
 
         //lest find the random direction first, for find the target to movement
         while (!isTargetDirectionSelected)
         {
-            randomDirection = UnityEngine.Random.Range(0, Enum.GetValues(typeof(Direction)).Length);
+            yield return new WaitForEndOfFrame(); ;
+            m_randomDirection = UnityEngine.Random.Range(0, Enum.GetValues(typeof(Direction)).Length);
 
-            horizontalDirection = verticalDirection = 0;
+            m_horizontalDirection = m_verticalDirection = 0;
 
-            if ((Direction)randomDirection == Direction.Left)
+            if ((Direction)m_randomDirection == Direction.Left)
             {
-                horizontalDirection = -1;
+                m_horizontalDirection = -1;
             }
-            else if ((Direction)randomDirection == Direction.Right)
+            else if ((Direction)m_randomDirection == Direction.Right)
             {
-                    horizontalDirection = 1;
+                m_horizontalDirection = 1;
             }
-            else if ((Direction)randomDirection == Direction.Top)
+            else if ((Direction)m_randomDirection == Direction.Top)
             {
-                    verticalDirection = 1;
+                m_verticalDirection = 1;
             }
-            else if ((Direction)randomDirection == Direction.Bottom)
+            else if ((Direction)m_randomDirection == Direction.Bottom)
             {
-                    verticalDirection = -1;
+                m_verticalDirection = -1;
             }
 
-            if (!IsBlockedCellByNear(horizontalDirection, verticalDirection) && !IsOnEdgeOfGrid(horizontalDirection, verticalDirection))
+            if (!IsBlockedCellByNear(m_horizontalDirection, m_verticalDirection) && !IsOnEdgeOfGrid(m_horizontalDirection, m_verticalDirection))
             {
                 isTargetDirectionSelected = true;
-                break;
             }
         }
 
-        Debug.Log("direction: "+ (Direction)randomDirection);
         bool isTargetSelected = false;
         Vector2 l_Position = transform.position;
 
-        if (randomDirection == (int)Direction.Left)
+        if (m_randomDirection == (int)Direction.Left)
         {
             while (!isTargetSelected)
             {
+                yield return new WaitForEndOfFrame(); ;
+
                 l_Position.x -= m_Cell.CellWidth;
                 if (!IsLeftCellEmpty(l_Position))
                 {
@@ -308,13 +352,14 @@ public class Enemy : MonoBehaviour
 
             Cell cell = m_Cells.Find(x => x.IsOccupied == false && Vector2.Distance(x.Position, l_Position) <= 0.1f && x.Column >= 1);
             m_TargetCell = cell;
-
         }
 
-        if (randomDirection == (int)Direction.Right)
+        if (m_randomDirection == (int)Direction.Right)
         {
             while (!isTargetSelected)
             {
+                yield return new WaitForEndOfFrame(); ;
+
                 l_Position.x += m_Cell.CellWidth;
                 if (!IsRightCellEmpty(l_Position))
                 {
@@ -327,27 +372,30 @@ public class Enemy : MonoBehaviour
             m_TargetCell = cell;
         }
 
-        if (randomDirection == (int)Direction.Top)
+        if (m_randomDirection == (int)Direction.Top)
         {
             while (!isTargetSelected)
             {
+                yield return new WaitForEndOfFrame(); ;
+
                 l_Position.y += m_Cell.CellHeight;
                 if (!IsTopCellEmpty(l_Position))
                 {
                     isTargetSelected = true;
-                    l_Position.y -= m_Cell.CellHeight; 
+                    l_Position.y -= m_Cell.CellHeight;
                 }
             }
-
 
             Cell cell = m_Cells.Find(x => x.IsOccupied == false && Vector2.Distance(x.Position, l_Position) <= 0.1f && x.Row <= TOTAL_ROW);
             m_TargetCell = cell;
         }
 
-        if (randomDirection == (int)Direction.Bottom)
+        if (m_randomDirection == (int)Direction.Bottom)
         {
             while (!isTargetSelected)
             {
+                yield return new WaitForEndOfFrame(); ;
+
                 l_Position.y -= m_Cell.CellHeight;
                 if (!IsBottomCellEmpty(l_Position))
                 {
@@ -356,27 +404,34 @@ public class Enemy : MonoBehaviour
                 }
             }
 
-
             Cell cell = m_Cells.Find(x => x.IsOccupied == false && Vector2.Distance(x.Position, l_Position) <= 0.1f && x.Row >= 1);
             m_TargetCell = cell;
         }
 
         if (m_TargetCell == null)
         {
-            PatrollerEnemyMovement();
+            StartCoroutine(FindCell());
         }
+    }
 
-        if (randomDirection == (int)Direction.Bottom || randomDirection == (int)Direction.Top)
+    private IEnumerator ActiveEnemyMovementoroutine()
+    {
+        StartCoroutine(FindCell());
+
+        while (m_TargetCell == null)
         {
-            StartCoroutine(StartMovementY(verticalDirection, m_TargetCell.Position));
+            yield return new WaitForEndOfFrame();
         }
+        
+            if (m_randomDirection == (int)Direction.Bottom || m_randomDirection == (int)Direction.Top)
+            {
+                m_PatrollerMovementXCoroutine = StartCoroutine(StartMovementY(m_verticalDirection, m_TargetCell.Position));
+            }
 
-        if (randomDirection == (int)Direction.Left || randomDirection == (int)Direction.Right)
-        {
-            StartCoroutine(StartMovementX(horizontalDirection, m_TargetCell.Position));
-        }
-
-       Debug.Log("target: "+ m_TargetCell.Row +" , "+ m_TargetCell.Column + "direction: "+ (int)randomDirection +" pos: "+ m_TargetCell.Position);
+            if (m_randomDirection == (int)Direction.Left || m_randomDirection == (int)Direction.Right)
+            {
+                m_PatrollerMovementYCoroutine = StartCoroutine(StartMovementX(m_horizontalDirection, m_TargetCell.Position));
+            }
     }
 
     private bool IsLeftCellEmpty(Vector2 left)
@@ -419,8 +474,142 @@ public class Enemy : MonoBehaviour
         return false;
     }
 
+
+    private void SetTargetForMovement()
+    {
+        bool isTargetDirectionSelected = false;
+        m_randomDirection = -1;
+
+        // check blocker are around the all four direction or not
+        if (IsBlockedCellByNear(-1) && IsBlockedCellByNear(1)
+           && IsBlockedCellByNear(0, -1) && IsBlockedCellByNear(0, 1))
+        {
+            return;
+        }
+
+        m_horizontalDirection = 0; m_verticalDirection = 0;
+
+        //lest find the random direction first, for find the target to movement
+        while (!isTargetDirectionSelected)
+        {
+            m_randomDirection = UnityEngine.Random.Range(0, Enum.GetValues(typeof(Direction)).Length);
+
+            Debug.Log("direction: "+ m_randomDirection);
+            m_horizontalDirection = m_verticalDirection = 0;
+
+            if ((Direction)m_randomDirection == Direction.Left)
+            {
+                m_horizontalDirection = -1;
+            }
+            else if ((Direction)m_randomDirection == Direction.Right)
+            {
+                m_horizontalDirection = 1;
+            }
+            else if ((Direction)m_randomDirection == Direction.Top)
+            {
+                m_verticalDirection = 1;
+            }
+            else if ((Direction)m_randomDirection == Direction.Bottom)
+            {
+                m_verticalDirection = -1;
+            }
+
+            if (!IsBlockedCellByNear(m_horizontalDirection, m_verticalDirection) && !IsOnEdgeOfGrid(m_horizontalDirection, m_verticalDirection))
+            {
+                isTargetDirectionSelected = true;
+                break;
+            }
+        }
+
+        bool isTargetSelected = false;
+        Vector2 l_Position = transform.position;
+
+        if (m_randomDirection == (int)Direction.Left)
+        {
+            while (!isTargetSelected)
+            {
+                l_Position.x -= m_Cell.CellWidth;
+                if (!IsLeftCellEmpty(l_Position))
+                {
+                    isTargetSelected = true;
+                    l_Position.x += m_Cell.CellWidth;
+                }
+            }
+
+            Cell cell = m_Cells.Find(x => x.IsOccupied == false && Vector2.Distance(x.Position, l_Position) <= 0.1f && x.Column >= 1);
+            m_TargetCell = cell;
+
+        }
+
+        if (m_randomDirection == (int)Direction.Right)
+        {
+            while (!isTargetSelected)
+            {
+                l_Position.x += m_Cell.CellWidth;
+                if (!IsRightCellEmpty(l_Position))
+                {
+                    isTargetSelected = true;
+                    l_Position.x -= m_Cell.CellWidth;
+                }
+            }
+
+            Cell cell = m_Cells.Find(x => x.IsOccupied == false && Vector2.Distance(x.Position, l_Position) <= 0.1f && x.Column <= TOTAL_COLUMN);
+            m_TargetCell = cell;
+        }
+
+        if (m_randomDirection == (int)Direction.Top)
+        {
+            while (!isTargetSelected)
+            {
+                l_Position.y += m_Cell.CellHeight;
+                if (!IsTopCellEmpty(l_Position))
+                {
+                    isTargetSelected = true;
+                    l_Position.y -= m_Cell.CellHeight;
+                }
+            }
+
+
+            Cell cell = m_Cells.Find(x => x.IsOccupied == false && Vector2.Distance(x.Position, l_Position) <= 0.1f && x.Row <= TOTAL_ROW);
+            m_TargetCell = cell;
+        }
+
+        if (m_randomDirection == (int)Direction.Bottom)
+        {
+            while (!isTargetSelected)
+            {
+                l_Position.y -= m_Cell.CellHeight;
+                if (!IsBottomCellEmpty(l_Position))
+                {
+                    isTargetSelected = true;
+                    l_Position.y += m_Cell.CellHeight;
+                }
+            }
+
+
+            Cell cell = m_Cells.Find(x => x.IsOccupied == false && Vector2.Distance(x.Position, l_Position) <= 0.1f && x.Row >= 1);
+            m_TargetCell = cell;
+        }
+
+        if (m_TargetCell == null)
+        {
+           SetTargetForMovement();
+        }
+    }
+
     private IEnumerator StartMovementX(int initialDirection, Vector2 target)
     {
+        float l_Speed = 0f;
+        if (Type == EnemyType.Patroller)
+        {
+            l_Speed = m_PatrollerSpeed;
+        }
+
+        if (Type == EnemyType.Active)
+        {
+            l_Speed = m_ActiveEnemySpeed;
+        }
+
         int direction = initialDirection;
         Vector2 l_Position = transform.position;
         Vector2 l_NewTarget = target;
@@ -433,11 +622,11 @@ public class Enemy : MonoBehaviour
 
             if (direction == -1)
             {
-                l_UpdatePos.x -= Time.deltaTime * m_PatrollerSpeed;
+                l_UpdatePos.x -= Time.deltaTime * l_Speed;
             }
             else if (direction == 1)
             {
-                l_UpdatePos.x += Time.deltaTime * m_PatrollerSpeed;
+                l_UpdatePos.x += Time.deltaTime * l_Speed;
             }
             transform.position = l_UpdatePos;
         } while (Vector2.Distance(transform.position, l_NewTarget) >= 0.1f);
@@ -445,12 +634,22 @@ public class Enemy : MonoBehaviour
 
         transform.position = l_NewTarget;
         l_NewTarget = l_Position;
-        StopAllCoroutines();
-        StartCoroutine(StartMovementX (- direction, l_NewTarget));
+        m_PatrollerMovementXCoroutine = StartCoroutine(StartMovementX (- direction, l_NewTarget));
     }
 
     private IEnumerator StartMovementY(int initialDirection, Vector2 target)
     {
+        float l_Speed = 0f;
+        if (Type == EnemyType.Patroller)
+        {
+            l_Speed = m_PatrollerSpeed;
+        }
+
+        if (Type == EnemyType.Active)
+        {
+            l_Speed = m_ActiveEnemySpeed;
+        }
+
         int direction = initialDirection;
         Vector2 l_Position = transform.position;
         Vector2 l_NewTarget = target;
@@ -463,11 +662,11 @@ public class Enemy : MonoBehaviour
 
             if (direction == -1)
             {
-                l_UpdatePos.y -= Time.deltaTime * m_PatrollerSpeed;
+                l_UpdatePos.y -= Time.deltaTime * l_Speed;
             }
             else if (direction == 1)
             {
-                l_UpdatePos.y += Time.deltaTime * m_PatrollerSpeed;
+                l_UpdatePos.y += Time.deltaTime * l_Speed;
             }
             transform.position = l_UpdatePos;
         } while (Vector2.Distance(transform.position, l_NewTarget) >= 0.1f);
@@ -475,7 +674,6 @@ public class Enemy : MonoBehaviour
 
         transform.position = l_NewTarget;
         l_NewTarget = l_Position;
-        StopAllCoroutines();
-        StartCoroutine(StartMovementY(-direction, l_NewTarget));
+        m_PatrollerMovementYCoroutine = StartCoroutine(StartMovementY(-direction, l_NewTarget));
     }
 }
